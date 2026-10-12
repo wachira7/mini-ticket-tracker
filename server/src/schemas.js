@@ -12,6 +12,23 @@ export const createTicketBody = z
   })
   .strict(); // reject unknown fields instead of silently ignoring them
 
+// At least one field, and only the two the spec allows to change.
+export const patchTicketBody = z
+  .object({
+    status: z.enum(STATUSES).optional(),
+    priority: z.enum(PRIORITIES).optional(),
+  })
+  .strict()
+  .refine((b) => b.status !== undefined || b.priority !== undefined, {
+    message: 'provide status and/or priority',
+  });
+
+const PG_INT_MAX = 2147483647;
+
+export const ticketIdParam = z.object({
+  id: z.coerce.number().int().positive().max(PG_INT_MAX),
+});
+
 export const listQuery = z.object({
   status: z.enum(STATUSES).optional(),
   page: z.coerce.number().int().min(1).default(1),

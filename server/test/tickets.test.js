@@ -89,3 +89,26 @@ test('GET /tickets rejects invalid query parameters with 400', async () => {
   assert.equal((await request(app).get('/tickets?limit=1000')).status, 400);
   assert.equal((await request(app).get('/tickets?page=0')).status, 400);
 });
+
+test('PATCH /tickets/:id updates status/priority and is idempotent', async () => {
+  const { body: ticket } = await create();
+
+  const a = await request(app).patch(`/tickets/${ticket.id}`).send({ status: 'in_progress', priority: 'high' });
+  const b = await request(app).patch(`/tickets/${ticket.id}`).send({ status: 'in_progress', priority: 'high' });
+
+  assert.equal(a.status, 200);
+  assert.equal(b.status, 200);
+  assert.equal(b.body.status, 'in_progress');
+  assert.equal(b.body.priority, 'high');
+  assert.equal(b.body.title, ticket.title); // untouched fields stay untouched
+});
+
+test('PATCH /tickets/:id validates input and handles missing tickets', async () => {
+  const { body: ticket } = await create();
+
+  assert.equal((await request(app).patch(`/tickets/${ticket.id}`).send({})).status, 400);
+  assert.equal((await request(app).patch(`/tickets/${ticket.id}`).send({ status: 'done' })).status, 400);
+  assert.equal((await request(app).patch(`/tickets/${ticket.id}`).send({ title: 'x' })).status, 400);
+  assert.equal((await request(app).patch('/tickets/abc').send({ status: 'closed' })).status, 400);
+  assert.equal((await request(app).patch('/tickets/999999').send({ status: 'closed' })).status, 404);
+});

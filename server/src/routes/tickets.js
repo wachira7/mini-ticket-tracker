@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
-import { createTicketBody, listQuery, idempotencyKey } from '../schemas.js';
+import {
+  createTicketBody,
+  patchTicketBody,
+  ticketIdParam,
+  listQuery,
+  idempotencyKey,
+} from '../schemas.js';
 
 export const ticketsRouter = Router();
 
@@ -54,5 +60,25 @@ ticketsRouter.get(
     ]);
 
     res.json({ data, page, limit, total, total_pages: Math.ceil(total / limit) });
+  }),
+);
+
+// PATCH /tickets/:id   body: { status?, priority? }
+ticketsRouter.patch(
+  '/:id',
+  wrap(async (req, res) => {
+    const { id } = ticketIdParam.parse(req.params);
+    const changes = patchTicketBody.parse(req.body);
+
+    try {
+      // Single UPDATE statement: atomic, and idempotent because it sets absolute values.
+      const ticket = await prisma.ticket.update({ where: { id }, data: changes });
+      res.json(ticket);
+    } catch (err) {
+      if (err.code === 'P2025') {
+        return res.status(404).json({ error: { code: 'not_found', message: `ticket ${id} not found` } });
+      }
+      throw err;
+    }
   }),
 );
