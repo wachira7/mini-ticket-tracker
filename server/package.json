@@ -1,0 +1,26 @@
+{
+  "name": "ticket-tracker-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env --watch src/index.js",
+    "start": "node --env-file=.env src/index.js",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "pretest": "node --env-file=.env.test node_modules/prisma/build/index.js migrate deploy",
+    "test": "node --env-file=.env.test --test --test-concurrency=1 test/"
+  },
+  "dependencies": {
+    "@prisma/client": "6",
+    "express": "4",
+    "zod": "3"
+  },
+  "devDependencies": {
+    "prisma": "6",
+    "supertest": "^7.3.1"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}
