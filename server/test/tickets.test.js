@@ -112,3 +112,15 @@ test('PATCH /tickets/:id validates input and handles missing tickets', async () 
   assert.equal((await request(app).patch('/tickets/abc').send({ status: 'closed' })).status, 400);
   assert.equal((await request(app).patch('/tickets/999999').send({ status: 'closed' })).status, 404);
 });
+
+test('GET /tickets/stats returns counts per status, including zeros', async () => {
+  const a = (await create()).body;
+  const b = (await create()).body;
+  await create();
+  await request(app).patch(`/tickets/${a.id}`).send({ status: 'closed' });
+  await request(app).patch(`/tickets/${b.id}`).send({ status: 'closed' });
+
+  const res = await request(app).get('/tickets/stats');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { open: 1, in_progress: 0, closed: 2, total: 3 });
+});

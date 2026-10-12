@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import {
+  STATUSES,
   createTicketBody,
   patchTicketBody,
   ticketIdParam,
@@ -12,6 +13,18 @@ export const ticketsRouter = Router();
 
 // Express 4 doesn't catch rejected promises; wrap handlers so errors reach the error middleware.
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
+
+// GET /tickets/stats  (declared before any "/:id" route so "stats" is never read as an id)
+ticketsRouter.get(
+  '/stats',
+  wrap(async (_req, res) => {
+    // One GROUP BY statement => a consistent snapshot of the counts.
+    const rows = await prisma.ticket.groupBy({ by: ['status'], _count: { _all: true } });
+    const counts = Object.fromEntries(STATUSES.map((s) => [s, 0]));
+    for (const r of rows) counts[r.status] = r._count._all;
+    res.json({ ...counts, total: Object.values(counts).reduce((a, b) => a + b, 0) });
+  }),
+);
 
 // POST /tickets
 ticketsRouter.post(
