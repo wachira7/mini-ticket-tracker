@@ -63,3 +63,29 @@ test('concurrent POSTs with the same Idempotency-Key still create one ticket', a
   assert.equal(new Set(results.map((r) => r.body.id)).size, 1);
   assert.equal(await prisma.ticket.count(), 1);
 });
+
+test('GET /tickets filters by status and paginates newest first', async () => {
+  for (let i = 1; i <= 5; i++) await create({ title: `t${i}` });
+  const all = (await request(app).get('/tickets?limit=100')).body.data;
+  assert.deepEqual(all.map((t) => t.title), ['t5', 't4', 't3', 't2', 't1']);
+  assert.ok(all.every((t) => !('idempotency_key' in t)));
+
+  // Close t1 and t2 directly in the DB; this test is about reading, not updating.
+  await prisma.ticket.updateMany({ where: { title: { in: ['t1', 't2'] } }, data: { status: 'closed' } });
+
+  const closed = await request(app).get('/tickets?status=closed');
+  assert.equal(closed.body.total, 2);
+  assert.ok(closed.body.data.every((t) => t.status === 'closed'));
+
+  const page2 = await request(app).get('/tickets?page=2&limit=2');
+  assert.equal(page2.body.page, 2);
+  assert.equal(page2.body.total, 5);
+  assert.equal(page2.body.total_pages, 3);
+  assert.deepEqual(page2.body.data.map((t) => t.title), ['t3', 't2']);
+});
+
+test('GET /tickets rejects invalid query parameters with 400', async () => {
+  assert.equal((await request(app).get('/tickets?status=done')).status, 400);
+  assert.equal((await request(app).get('/tickets?limit=1000')).status, 400);
+  assert.equal((await request(app).get('/tickets?page=0')).status, 400);
+});

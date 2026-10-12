@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
-import { createTicketBody, idempotencyKey } from '../schemas.js';
+import { createTicketBody, listQuery, idempotencyKey } from '../schemas.js';
 
 export const ticketsRouter = Router();
 
@@ -32,5 +32,27 @@ ticketsRouter.post(
       }
       throw err;
     }
+  }),
+);
+
+// GET /tickets?status=&page=&limit=
+ticketsRouter.get(
+  '/',
+  wrap(async (req, res) => {
+    const { status, page, limit } = listQuery.parse(req.query);
+    const where = status ? { status } : {};
+
+    // Stable order: created_at alone can tie, so id breaks ties and pages never overlap.
+    const [data, total] = await Promise.all([
+      prisma.ticket.findMany({
+        where,
+        orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.ticket.count({ where }),
+    ]);
+
+    res.json({ data, page, limit, total, total_pages: Math.ceil(total / limit) });
   }),
 );
