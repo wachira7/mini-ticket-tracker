@@ -9,7 +9,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "pretest": "node --env-file=.env.test node_modules/prisma/build/index.js migrate deploy",
-    "test": "node --env-file=.env.test --test --test-concurrency=1 test/"
+    "test": "node --env-file=.env.test --test --test-concurrency=1 test/*.test.js"
   },
   "dependencies": {
     "@prisma/client": "6",
